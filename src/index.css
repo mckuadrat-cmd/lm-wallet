@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+
+  --color-primary-950: #143A30;
+  --color-primary-900: #19483B;
+  --color-primary-800: #245D4B;
+  --color-primary-700: #34735D;
+  --color-primary-100: #E5F0EB;
+  --color-primary-50: #F3F8F5;
+
+  --color-background: #F7F9F8;
+  --color-surface: #FFFFFF;
+  --color-text-main: #18322B;
+  --color-text-muted: #71807A;
+  --color-border: #DDE7E2;
+
+  --color-income: #2F7D5B;
+  --color-expense: #C44E4E;
+  --color-warning: #B47A25;
+
+  --radius-card: 16px;
+  --radius-card-large: 20px;
+}
+
+/* Custom Base styling */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-text-main);
+  font-size: 1.125rem; /* ~18px for large readable font */
+  line-height: 1.6;
+}
+
+/* Base Headings */
+h1 {
+  font-size: 2.25rem; /* 36px */
+  font-weight: 800;
+  color: var(--color-primary-950);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 1.75rem; /* 28px */
+  font-weight: 700;
+  color: var(--color-primary-950);
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.35rem; /* 22px */
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+/* Standardized scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
