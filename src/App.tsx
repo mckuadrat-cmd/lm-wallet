@@ -27,6 +27,7 @@ import { ManageCards } from './pages/admin/ManageCards'
 import { ManageUsers } from './pages/admin/ManageUsers'
 import { ManageSettings } from './pages/admin/ManageSettings'
 import { AdminScoreboard } from './pages/admin/AdminScoreboard'
+import { RfidTest } from './pages/admin/RfidTest'
 
 // Banker Pages
 import { BankerDashboard } from './pages/banker/BankerDashboard'
@@ -136,6 +137,16 @@ function App() {
               <AuthGuard>
                 <RoleGuard allowedRoles={['admin']}>
                   <AdminLayout><ManageSettings /></AdminLayout>
+                </RoleGuard>
+              </AuthGuard>
+            } 
+          />
+          <Route 
+            path="/admin/rfid-test" 
+            element={
+              <AuthGuard>
+                <RoleGuard allowedRoles={['admin']}>
+                  <AdminLayout><RfidTest /></AdminLayout>
                 </RoleGuard>
               </AuthGuard>
             } 

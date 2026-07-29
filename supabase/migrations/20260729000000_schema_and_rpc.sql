@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS public.items (
     item_type TEXT NOT NULL CHECK (item_type IN ('purchase', 'rental')),
     price BIGINT NOT NULL CHECK (price >= 0),
     unit TEXT NOT NULL,
+    stock INT DEFAULT NULL,
     is_active BOOLEAN DEFAULT true,
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
@@ -209,6 +210,7 @@ DECLARE
   v_tx_number TEXT;
   v_item RECORD;
   v_result JSONB;
+  v_current_stock INT;
 BEGIN
   -- 1. Check user authentication and role
   v_user_id := auth.uid();
@@ -268,6 +270,21 @@ BEGIN
     FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(
       item_id UUID, item_name TEXT, item_type TEXT, quantity INT, unit TEXT, unit_price BIGINT, subtotal BIGINT
     ) LOOP
+
+      -- Check and decrement stock for purchase items
+      IF v_item.item_type = 'purchase' THEN
+        SELECT stock INTO v_current_stock FROM public.items WHERE id = v_item.item_id FOR UPDATE;
+        
+        -- If stock is not null, it means it's tracked
+        IF v_current_stock IS NOT NULL THEN
+          IF v_current_stock < v_item.quantity THEN
+             RAISE EXCEPTION 'Stok % tidak mencukupi. Sisa: %, Diminta: %', v_item.item_name, v_current_stock, v_item.quantity;
+          END IF;
+          -- Decrement stock
+          UPDATE public.items SET stock = stock - v_item.quantity WHERE id = v_item.item_id;
+        END IF;
+      END IF;
+
       INSERT INTO public.transaction_items (
         id, transaction_id, item_id, item_name, item_type, quantity, unit, unit_price, subtotal, created_at
       ) VALUES (

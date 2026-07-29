@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { QRCodeSVG as QRCode } from 'qrcode.react'
+import { RFIDScannerDialog } from '../../components/scanner/RFIDScannerDialog'
 
 interface CardData {
   id: string
@@ -27,7 +28,6 @@ export const ManageCards: React.FC = () => {
   
   // Dialog states
   const [rfidOpen, setRfidOpen] = useState(false)
-  const [newRfid, setNewRfid] = useState('')
   const [statusOpen, setStatusOpen] = useState(false)
   const [showQrOpen, setShowQrOpen] = useState(false)
   const [newStatus, setNewStatus] = useState<'active' | 'inactive' | 'lost'>('active')
@@ -65,7 +65,6 @@ export const ManageCards: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['adminCardsList'] })
       setRfidOpen(false)
       setSelectedCard(null)
-      setNewRfid('')
     },
     onError: (err: any) => {
       toast.error(err.message || 'Gagal memperbarui RFID (RFID UID mungkin sudah terpakai)')
@@ -91,15 +90,6 @@ export const ManageCards: React.FC = () => {
       toast.error(err.message || 'Gagal mengubah status kartu')
     }
   })
-
-  const handleRfidSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedCard) return
-    updateRfidMutation.mutate({
-      cardId: selectedCard.id,
-      rfid: newRfid
-    })
-  }
 
   const handleStatusSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -182,7 +172,6 @@ export const ManageCards: React.FC = () => {
                         <button
                           onClick={() => {
                             setSelectedCard(card)
-                            setNewRfid(card.rfid_uid || '')
                             setRfidOpen(true)
                           }}
                           className="px-3 py-2 text-xs font-bold bg-primary-50 text-primary-950 rounded-xl hover:bg-primary-100 transition-colors border border-primary-100 flex items-center gap-1"
@@ -249,7 +238,6 @@ export const ManageCards: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedCard(card)
-                      setNewRfid(card.rfid_uid || '')
                       setRfidOpen(true)
                     }}
                     className="flex-1 py-2 text-xs font-bold bg-primary-50 text-primary-950 rounded-xl border border-primary-100 flex items-center justify-center gap-1"
@@ -282,58 +270,17 @@ export const ManageCards: React.FC = () => {
         </div>
       )}
 
-      {/* Set RFID Dialog */}
-      {rfidOpen && selectedCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-md bg-surface rounded-2xl-card shadow-2xl overflow-hidden border border-border p-6">
-            <button 
-              onClick={() => { setRfidOpen(false); setSelectedCard(null); }}
-              className="absolute top-4 right-4 p-2 rounded-xl text-text-muted hover:bg-primary-50 transition-colors"
-            >
-              <X className="h-6 w-6" />
-            </button>
-
-            <h3 className="text-2xl font-black text-primary-950 mb-2">Tautkan RFID</h3>
-            <p className="text-sm text-text-muted mb-4">
-              Menghubungkan kartu RFID UID dengan kelas <strong className="text-primary-950">{selectedCard.class.name}</strong>.
-            </p>
-
-            <form onSubmit={handleRfidSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-primary-950 block">RFID UID (Ketik manual / Tap di sensor)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: 0008237129"
-                  value={newRfid}
-                  onChange={e => setNewRfid(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700 text-lg font-mono font-bold text-center"
-                  disabled={updateRfidMutation.isPending}
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => { setRfidOpen(false); setSelectedCard(null); }}
-                  className="flex-1 py-3 px-4 bg-background border border-border text-primary-950 font-bold hover:bg-primary-50 rounded-xl transition-colors"
-                  disabled={updateRfidMutation.isPending}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 px-4 bg-primary-950 text-white font-bold hover:bg-primary-900 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-                  disabled={updateRfidMutation.isPending}
-                >
-                  {updateRfidMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Simpan RFID'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Set RFID Dialog using Web Serial */}
+      <RFIDScannerDialog
+        isOpen={rfidOpen}
+        onClose={() => { setRfidOpen(false); setSelectedCard(null); }}
+        mode="raw"
+        onRawSuccess={(uid) => {
+          if (selectedCard) {
+            updateRfidMutation.mutate({ cardId: selectedCard.id, rfid: uid })
+          }
+        }}
+      />
 
       {/* Change Status Dialog */}
       {statusOpen && selectedCard && (

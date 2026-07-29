@@ -17,7 +17,6 @@ import {
   Plus, 
   Minus, 
   Loader2, 
-  CreditCard, 
   Camera, 
   X,
   XCircle,
@@ -33,6 +32,8 @@ interface CatalogItem {
   item_type: 'purchase' | 'rental'
   price: number
   unit: string
+  discount_price?: number
+  stock: number | null
 }
 
 interface MissionItem {
@@ -79,6 +80,7 @@ export const BankerTransaction: React.FC = () => {
 
   // Cart for items
   const [cart, setCart] = useState<Record<string, CartItem>>({})
+  const [discount, setDiscount] = useState<number>(0)
   
   // Target class parameters
   const [targetClass, setTargetClass] = useState<ClassSelectInfo | null>(null)
@@ -109,7 +111,12 @@ export const BankerTransaction: React.FC = () => {
         .eq('is_active', true)
         .order('sort_order', { ascending: true })
       if (error) throw error
-      return data.map(i => ({ ...i, price: Number(i.price) }))
+      return data.map(i => ({ 
+        ...i, 
+        price: Number(i.price),
+        discount_price: i.discount_price ? Number(i.discount_price) : undefined,
+        stock: i.stock !== null ? Number(i.stock) : null
+      }))
     }
   })
 
@@ -173,7 +180,7 @@ export const BankerTransaction: React.FC = () => {
         p_transaction_type: txType,
         p_amount: amount,
         p_mission_id: missionId || null,
-        p_description: description || null,
+        p_description: description ? (discount > 0 ? `${description} (Diskon: ${formatLM(discount)})` : description) : (discount > 0 ? `(Diskon: ${formatLM(discount)})` : null),
         p_items: itemsPayload
       })
 
@@ -204,6 +211,7 @@ export const BankerTransaction: React.FC = () => {
   const handleSelectType = (type: string) => {
     setTxType(type)
     setAmount(0)
+    setDiscount(0)
     setDescription('')
     setMissionId('')
     setCart({})
@@ -225,11 +233,18 @@ export const BankerTransaction: React.FC = () => {
     const currentQty = current ? current.quantity : 0
     const newQty = currentQty + delta
 
+    // Check stock limit
+    if (item.stock !== null && newQty > item.stock) {
+      toast.error(`Stok tidak mencukupi! Sisa stok ${item.name}: ${item.stock}`)
+      return
+    }
+
     if (newQty <= 0) {
       const copy = { ...cart }
       delete copy[item.id]
       setCart(copy)
     } else {
+      const activePrice = item.discount_price && item.discount_price > 0 ? item.discount_price : item.price
       setCart({
         ...cart,
         [item.id]: {
@@ -238,8 +253,8 @@ export const BankerTransaction: React.FC = () => {
           item_type: item.item_type,
           quantity: newQty,
           unit: item.unit,
-          unit_price: item.price,
-          subtotal: newQty * item.price
+          unit_price: activePrice,
+          subtotal: newQty * activePrice
         }
       })
     }
@@ -249,13 +264,13 @@ export const BankerTransaction: React.FC = () => {
   useEffect(() => {
     if (['purchase', 'rental'].includes(txType)) {
       const sum = Object.values(cart).reduce((total, i) => total + i.subtotal, 0)
-      setAmount(sum)
+      setAmount(Math.max(0, sum - discount))
       
       // Generate default item snapshot descriptions
       const desc = Object.values(cart).map(i => `${i.item_name} (${i.quantity} ${i.unit})`).join(', ')
       setDescription(desc)
     }
-  }, [cart, txType])
+  }, [cart, txType, discount])
 
   // Handle Mission Selection
   const handleSelectMission = (id: string) => {
@@ -291,11 +306,11 @@ export const BankerTransaction: React.FC = () => {
       toast.error('Harap pilih misi!')
       return
     }
-    if (!description.trim()) {
+    if (!description.trim() && !['purchase', 'rental'].includes(txType)) {
       toast.error('Keterangan / alasan transaksi harus diisi!')
       return
     }
-    setClassModalOpen(true)
+    setRfidOpen(true)
   }
 
   // Class card selected handler
@@ -318,6 +333,7 @@ export const BankerTransaction: React.FC = () => {
     setStep(1)
     setTxType('')
     setAmount(0)
+    setDiscount(0)
     setDescription('')
     setMissionId('')
     setCart({})
@@ -465,7 +481,17 @@ export const BankerTransaction: React.FC = () => {
                           <div key={item.id} className="flex justify-between items-center p-3">
                             <div>
                               <span className="font-extrabold text-primary-950 block text-base">{item.name}</span>
-                              <span className="text-xs text-text-muted leading-none mt-0.5 block">{formatLM(item.price)} per {item.unit}</span>
+                              {item.discount_price && item.discount_price > 0 ? (
+                                <div className="text-xs leading-none mt-0.5 block">
+                                  <span className="text-text-muted line-through mr-1">{formatLM(item.price)}</span>
+                                  <span className="text-income font-bold">{formatLM(item.discount_price)} per {item.unit}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-text-muted leading-none mt-0.5 block">{formatLM(item.price)} per {item.unit}</span>
+                              )}
+                              <span className="text-[10px] font-bold text-primary-900 mt-1 block">
+                                Stok: {item.stock !== null ? item.stock : '∞'}
+                              </span>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -488,9 +514,14 @@ export const BankerTransaction: React.FC = () => {
                               ) : (
                                 <button
                                   onClick={() => handleUpdateCartQty(item, 1)}
-                                  className="px-3 py-1.5 text-xs font-bold bg-primary-950 text-white rounded-lg hover:bg-primary-900 transition-colors"
+                                  disabled={item.stock === 0}
+                                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                    item.stock === 0 
+                                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                      : 'bg-primary-950 text-white hover:bg-primary-900'
+                                  }`}
                                 >
-                                  Tambah
+                                  {item.stock === 0 ? 'Habis' : 'Tambah'}
                                 </button>
                               )}
                             </div>
@@ -613,13 +644,36 @@ export const BankerTransaction: React.FC = () => {
             </div>
           )}
 
+          {/* Diskon Input for Purchase/Rental */}
+          {['purchase', 'rental'].includes(txType) && (
+            <div className="space-y-1.5 pt-2 border-t border-border/40">
+              <label className="text-sm font-bold text-primary-950 block">Diskon Transaksi (LM)</label>
+              <input
+                type="number"
+                min="0"
+                value={discount || ''}
+                onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="0"
+                className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700 text-lg font-bold"
+              />
+              <span className="text-xs text-text-muted">Opsional. Mengurangi total nominal transaksi secara keseluruhan.</span>
+            </div>
+          )}
+
           {/* Big Total Box */}
           <div className="bg-primary-950 text-white p-5 rounded-2xl flex justify-between items-center shadow-md">
             <div>
               <span className="text-xs text-primary-100 font-bold uppercase tracking-wider block">Total Transaksi</span>
               <span className="text-xs text-primary-100 mt-1 block">Arah: {direction === 'income' ? 'Pemasukan (+)' : 'Pengeluaran (-)'}</span>
             </div>
-            <div className="text-3xl font-black">{formatLM(amount)}</div>
+            <div className="text-right">
+              {discount > 0 && (
+                <div className="text-xs text-primary-200 line-through mb-1">
+                  {formatLM(amount + discount)}
+                </div>
+              )}
+              <div className="text-3xl font-black">{formatLM(amount)}</div>
+            </div>
           </div>
 
           {/* Step Actions */}
@@ -698,29 +752,8 @@ export const BankerTransaction: React.FC = () => {
               <X className="h-6 w-6" />
             </button>
 
-            <h3 className="text-2xl font-black text-primary-950 mb-1 text-center">Identifikasi Kelas</h3>
-            <p className="text-sm text-text-muted text-center mb-6">Pilih salah satu metode scanner atau pilih secara manual</p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <button
-                onClick={() => { setClassModalOpen(false); setRfidOpen(true); }}
-                className="flex items-center gap-3 p-4 bg-primary-950 text-white rounded-xl hover:bg-primary-900 transition-colors font-bold shadow-xs text-base justify-center"
-              >
-                <CreditCard className="h-5 w-5" /> Tap Kartu RFID
-              </button>
-              <button
-                onClick={() => { setClassModalOpen(false); setQrOpen(true); }}
-                className="flex items-center gap-3 p-4 bg-background text-primary-950 border border-border rounded-xl hover:bg-primary-50 transition-colors font-bold text-base justify-center"
-              >
-                <Camera className="h-5 w-5" /> Scan QR Code
-              </button>
-            </div>
-
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-border"></div>
-              <span className="flex-shrink mx-4 text-xs font-bold text-text-muted uppercase">Pilih Manual</span>
-              <div className="flex-grow border-t border-border"></div>
-            </div>
+            <h3 className="text-2xl font-black text-primary-950 mb-1 text-center">Pilih Kelas Manual</h3>
+            <p className="text-sm text-text-muted text-center mb-6">Pilih akun kelas secara manual untuk memproses transaksi.</p>
 
             {/* Manual Active Classes Card Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
@@ -822,6 +855,22 @@ export const BankerTransaction: React.FC = () => {
         isOpen={rfidOpen}
         onClose={() => setRfidOpen(false)}
         onSuccess={handleClassIdentified}
+        footerActions={
+          <div className="flex flex-col gap-2 w-full">
+            <button
+              onClick={() => { setRfidOpen(false); setQrOpen(true); }}
+              className="flex items-center gap-3 py-3 px-4 bg-background text-primary-950 border border-border rounded-xl hover:bg-primary-50 transition-colors font-bold text-sm justify-center w-full"
+            >
+              <Camera className="h-4 w-4" /> Beralih ke Scan QR
+            </button>
+            <button
+              onClick={() => { setRfidOpen(false); setClassModalOpen(true); }}
+              className="flex items-center gap-3 py-3 px-4 bg-background text-primary-950 border border-border rounded-xl hover:bg-primary-50 transition-colors font-bold text-sm justify-center w-full"
+            >
+              Pilih Kelas Manual
+            </button>
+          </div>
+        }
       />
 
       <QRCodeScannerDialog

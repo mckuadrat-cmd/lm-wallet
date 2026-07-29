@@ -23,11 +23,14 @@ interface ItemData {
   unit: string
   is_active: boolean
   sort_order: number
+  discount_price?: number
+  stock: number | null
 }
 
 export const ManageItems: React.FC = () => {
   const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(false)
+  const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemData | null>(null)
 
   // Form states
@@ -35,7 +38,10 @@ export const ManageItems: React.FC = () => {
   const [category, setCategory] = useState('Bahan Makanan')
   const [itemType, setItemType] = useState<'purchase' | 'rental'>('purchase')
   const [price, setPrice] = useState('50')
+  const [discountPrice, setDiscountPrice] = useState('0')
+  const [stock, setStock] = useState('')
   const [unit, setUnit] = useState('liter')
+  const [bulkAmount, setBulkAmount] = useState('')
   const [sortOrder, setSortOrder] = useState('1')
   const [isActiveStatus, setIsActiveStatus] = useState(true)
 
@@ -70,6 +76,8 @@ export const ManageItems: React.FC = () => {
     setCategory('Bahan Makanan')
     setItemType('purchase')
     setPrice('50')
+    setDiscountPrice('0')
+    setStock('')
     setUnit('liter')
     setSortOrder((items.length + 1).toString())
     setIsActiveStatus(true)
@@ -82,6 +90,8 @@ export const ManageItems: React.FC = () => {
     setCategory(itm.category)
     setItemType(itm.item_type)
     setPrice(itm.price.toString())
+    setDiscountPrice(itm.discount_price ? itm.discount_price.toString() : '0')
+    setStock(itm.stock !== null ? itm.stock.toString() : '')
     setUnit(itm.unit)
     setSortOrder(itm.sort_order.toString())
     setIsActiveStatus(itm.is_active)
@@ -95,6 +105,8 @@ export const ManageItems: React.FC = () => {
         category,
         item_type: itemType,
         price: parseInt(price) || 0,
+        discount_price: parseInt(discountPrice) || 0,
+        stock: stock.trim() ? parseInt(stock) : null,
         unit: unit.trim().toLowerCase(),
         sort_order: parseInt(sortOrder) || 0,
         is_active: isActiveStatus
@@ -120,6 +132,27 @@ export const ManageItems: React.FC = () => {
     },
     onError: (err: any) => {
       toast.error(err.message || 'Gagal menyimpan item')
+    }
+  })
+
+  const bulkAdjustMutation = useMutation({
+    mutationFn: async () => {
+      const amount = parseInt(bulkAmount)
+      if (isNaN(amount) || amount === 0) throw new Error('Nominal tidak valid')
+
+      const { error } = await supabase.rpc('adjust_all_item_prices', {
+        p_amount: amount
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Harga massal berhasil diperbarui!')
+      queryClient.invalidateQueries({ queryKey: ['adminItemsList'] })
+      setIsBulkOpen(false)
+      setBulkAmount('')
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Gagal menyesuaikan harga massal')
     }
   })
 
@@ -170,12 +203,20 @@ export const ManageItems: React.FC = () => {
           <h2 className="text-3xl font-black text-primary-950">Kelola Barang & Sewa</h2>
           <p className="text-text-muted text-sm mt-1">Kelola barang belanjaan dan perlengkapan sewa beserta tarifnya</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 px-5 py-3 bg-primary-950 text-white font-bold hover:bg-primary-900 rounded-xl transition-colors cursor-pointer text-base shadow-sm"
-        >
-          <PlusCircle className="h-5 w-5" /> Tambah Item
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsBulkOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-3 bg-background border border-border text-primary-950 font-bold hover:bg-primary-50 rounded-xl transition-colors cursor-pointer text-base shadow-sm"
+          >
+            <Edit className="h-5 w-5" /> Penyesuaian Harga Massal
+          </button>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 px-5 py-3 bg-primary-950 text-white font-bold hover:bg-primary-900 rounded-xl transition-colors cursor-pointer text-base shadow-sm"
+          >
+            <PlusCircle className="h-5 w-5" /> Tambah Item
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -195,6 +236,7 @@ export const ManageItems: React.FC = () => {
                   <th className="p-4">Tipe</th>
                   <th className="p-4">Harga / Tarif</th>
                   <th className="p-4">Satuan</th>
+                  <th className="p-4 text-center">Stok</th>
                   <th className="p-4 text-center">Status</th>
                   <th className="p-4 text-center">Aksi</th>
                 </tr>
@@ -215,8 +257,20 @@ export const ManageItems: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4 text-sm font-bold uppercase text-primary-900">{itm.item_type === 'purchase' ? 'Beli' : 'Sewa'}</td>
-                    <td className="p-4 font-black text-primary-950">{formatLM(itm.price)}</td>
+                    <td className="p-4">
+                      {itm.discount_price && itm.discount_price > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-text-muted line-through font-bold">{formatLM(itm.price)}</span>
+                          <span className="font-black text-income">{formatLM(itm.discount_price)}</span>
+                        </div>
+                      ) : (
+                        <span className="font-black text-primary-950">{formatLM(itm.price)}</span>
+                      )}
+                    </td>
                     <td className="p-4 font-semibold text-text-muted">per {itm.unit}</td>
+                    <td className="p-4 text-center font-bold text-primary-950">
+                      {itm.stock !== null ? itm.stock : <span className="text-xl">∞</span>}
+                    </td>
                     <td className="p-4 text-center">
                       <button
                         onClick={() => toggleStatusMutation.mutate({ id: itm.id, status: !itm.is_active })}
@@ -277,13 +331,25 @@ export const ManageItems: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-lg font-black text-primary-950">{formatLM(itm.price)}</span>
+                    {itm.discount_price && itm.discount_price > 0 ? (
+                      <>
+                        <span className="text-xs text-text-muted line-through font-bold block">{formatLM(itm.price)}</span>
+                        <span className="text-lg font-black text-income block">{formatLM(itm.discount_price)}</span>
+                      </>
+                    ) : (
+                      <span className="text-lg font-black text-primary-950 block">{formatLM(itm.price)}</span>
+                    )}
                     <span className="text-[10px] text-text-muted font-semibold block mt-0.5">per {itm.unit}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-border/40">
-                  <span className="text-xs text-text-muted">Urutan: {itm.sort_order}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-muted">Urutan: {itm.sort_order}</span>
+                    <span className="text-xs font-bold px-2 py-0.5 bg-primary-50 rounded text-primary-900 border border-primary-200">
+                      Stok: {itm.stock !== null ? itm.stock : '∞'}
+                    </span>
+                  </div>
                   
                   <div className="flex items-center gap-3">
                     <button
@@ -380,9 +446,9 @@ export const ManageItems: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-sm font-bold text-primary-950 block">Harga (LM)</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-primary-950 block">Harga Asli (LM)</label>
                   <input
                     type="number"
                     required
@@ -395,6 +461,21 @@ export const ManageItems: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-primary-950 block">Harga Diskon (Opsional)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={discountPrice}
+                    onChange={e => setDiscountPrice(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700 font-bold text-lg"
+                    disabled={saveMutation.isPending}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <label className="text-sm font-bold text-primary-950 block">Satuan</label>
                   <input
                     type="text"
@@ -406,19 +487,34 @@ export const ManageItems: React.FC = () => {
                     disabled={saveMutation.isPending}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-primary-950 block">Urutan Tampil</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={sortOrder}
-                  onChange={e => setSortOrder(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700"
-                  disabled={saveMutation.isPending}
-                />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-primary-950 block">Urutan Tampil</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={sortOrder}
+                    onChange={e => setSortOrder(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700"
+                    disabled={saveMutation.isPending}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-primary-950 block">Stok Barang</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Tak Terbatas"
+                    value={stock}
+                    onChange={e => setStock(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700 font-bold"
+                    disabled={saveMutation.isPending}
+                  />
+                  <span className="text-[10px] text-text-muted leading-tight block">Kosongkan jika stok tidak dibatasi</span>
+                </div>
               </div>
 
               {editingItem && (
@@ -459,6 +555,57 @@ export const ManageItems: React.FC = () => {
                   ) : (
                     'Simpan Item'
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Adjust Dialog */}
+      {isBulkOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-sm bg-surface rounded-2xl-card shadow-2xl overflow-hidden border border-border p-6">
+            <button 
+              onClick={() => setIsBulkOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-text-muted hover:bg-primary-50 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            <h3 className="text-2xl font-black text-primary-950 mb-2">Penyesuaian Harga Massal</h3>
+            <p className="text-sm text-text-muted mb-4">Ubah harga asli seluruh barang (naik / turun) secara bersamaan.</p>
+
+            <form onSubmit={(e) => { e.preventDefault(); bulkAdjustMutation.mutate(); }} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-primary-950 block">Penyesuaian (LM)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="Contoh: 10 atau -5"
+                  value={bulkAmount}
+                  onChange={e => setBulkAmount(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary-700 text-xl font-black text-center"
+                  disabled={bulkAdjustMutation.isPending}
+                />
+                <span className="text-[11px] text-text-muted block text-center mt-1">Gunakan angka minus (-) untuk menurunkan harga</span>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkOpen(false)}
+                  className="flex-1 py-3 px-4 bg-background border border-border text-primary-950 font-bold hover:bg-primary-50 rounded-xl transition-colors"
+                  disabled={bulkAdjustMutation.isPending}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 px-4 bg-primary-950 text-white font-bold hover:bg-primary-900 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  disabled={bulkAdjustMutation.isPending}
+                >
+                  {bulkAdjustMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Terapkan'}
                 </button>
               </div>
             </form>

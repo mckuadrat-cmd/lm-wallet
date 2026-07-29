@@ -15,7 +15,8 @@ import {
   X,
   User as UserIcon,
   Coins,
-  Trophy
+  Trophy,
+  Usb
 } from 'lucide-react'
 
 interface AdminLayoutProps {
@@ -37,6 +38,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Kartu RFID/QR', path: '/admin/cards', icon: CreditCard },
     { name: 'User', path: '/admin/users', icon: Users },
     { name: 'Live Scoreboard', path: '/admin/scoreboard', icon: Trophy },
+    { name: 'Pengujian RFID', path: '/admin/rfid-test', icon: Usb },
     { name: 'Pengaturan', path: '/admin/settings', icon: Settings },
   ]
 
@@ -57,7 +59,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <Coins className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-white leading-none">LM Wallet</h1>
+            <span className="text-xl font-extrabold tracking-tight text-white leading-none block">LM Wallet</span>
             <span className="text-xs text-primary-100 font-semibold tracking-wider uppercase">Portal Admin</span>
           </div>
         </div>
