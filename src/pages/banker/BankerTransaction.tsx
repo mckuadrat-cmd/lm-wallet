@@ -177,7 +177,7 @@ export const BankerTransaction: React.FC = () => {
       const { data, error } = await supabase.rpc('create_lm_transaction', {
         p_class_id: targetClass.class_id,
         p_direction: direction,
-        p_transaction_type: txType,
+        p_transaction_type: txType === 'mission' ? 'mission_reward' : txType,
         p_amount: amount,
         p_mission_id: missionId || null,
         p_description: description ? (discount > 0 ? `${description} (Diskon: ${formatLM(discount)})` : description) : (discount > 0 ? `(Diskon: ${formatLM(discount)})` : null),
