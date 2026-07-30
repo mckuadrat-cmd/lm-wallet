@@ -209,10 +209,16 @@ export function useRfidSerial() {
 
       // Request port from user
       const port = await navigator.serial.requestPort();
-      globalPort = port;
+      
+      // Attempt to close if dangling, ignore error
+      try { await port.close(); } catch(e) {}
 
       // Open port with baud rate 115200
       await port.open({ baudRate: 115200 });
+      globalPort = port;
+      
+      // Wait a moment for the device (like Arduino) to restart after DTR trigger
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       setGlobalStatus('connected');
       globalIsReading = true;

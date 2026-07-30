@@ -9,7 +9,7 @@ import {
   QrCode
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { QRCodeSVG as QRCode } from 'qrcode.react'
+import { QRCodeCanvas as QRCode } from 'qrcode.react'
 import { RFIDScannerDialog } from '../../components/scanner/RFIDScannerDialog'
 
 interface CardData {
@@ -114,6 +114,20 @@ export const ManageCards: React.FC = () => {
     const date = new Date(dateStr)
     return `${date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}, ${date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
   }
+
+  const downloadQR = () => {
+    const canvas = document.getElementById('qr-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const pngUrl = canvas
+      .toDataURL('image/png')
+      .replace('image/png', 'image/octet-stream');
+    const downloadLink = document.createElement('a');
+    downloadLink.href = pngUrl;
+    downloadLink.download = `QR-${selectedCard?.class?.name || 'Class'}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
 
   return (
     <div className="space-y-6">
@@ -362,6 +376,7 @@ export const ManageCards: React.FC = () => {
             </p>
             <div className="flex justify-center bg-white p-4 rounded-xl border border-border">
               <QRCode 
+                id="qr-canvas"
                 value={selectedCard.qr_token} 
                 size={220}
                 level="M"
@@ -371,10 +386,16 @@ export const ManageCards: React.FC = () => {
             <p className="text-xs text-text-muted text-center mt-4 font-medium">
               Gunakan fitur klik-kanan lalu <strong>Save image as...</strong> atau Print layar ini untuk mencetak QR Code.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex gap-2">
+              <button
+                onClick={downloadQR}
+                className="flex-1 py-3 bg-white border border-border text-primary-950 font-bold rounded-xl hover:bg-primary-50 transition-colors"
+              >
+                Download
+              </button>
               <button
                 onClick={() => setShowQrOpen(false)}
-                className="w-full py-3 bg-primary-950 text-white font-bold rounded-xl hover:bg-primary-900 transition-colors"
+                className="flex-1 py-3 bg-primary-950 text-white font-bold rounded-xl hover:bg-primary-900 transition-colors"
               >
                 Tutup
               </button>
