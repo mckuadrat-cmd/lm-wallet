@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Coins } from 'lucide-react'
 
 interface PublicLayoutProps {
@@ -11,7 +12,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       {/* Top Header */}
       <header className="bg-surface border-b border-border shadow-xs shrink-0">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="bg-primary-950 p-2 rounded-xl text-white">
               <Coins className="h-5 w-5" />
             </div>
@@ -19,7 +20,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <span className="text-lg font-black text-primary-950 tracking-tight block">LM Wallet</span>
               <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold -mt-0.5 block">Participant Wallet</span>
             </div>
-          </div>
+          </Link>
           <div className="text-right hidden sm:block">
             <span className="text-sm font-bold text-primary-900">Plan. Earn. Spend. Lead.</span>
           </div>

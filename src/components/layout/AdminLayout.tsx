@@ -54,7 +54,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-72 bg-primary-950 text-white border-r border-primary-900 shrink-0">
         {/* Brand Header */}
-        <div className="p-6 border-b border-primary-900 flex items-center gap-3">
+        <Link to="/" className="p-6 border-b border-primary-900 flex items-center gap-3 hover:bg-primary-900 transition-colors">
           <div className="bg-primary-100 p-2.5 rounded-xl text-primary-950">
             <Coins className="h-6 w-6" />
           </div>
@@ -62,7 +62,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <span className="text-xl font-extrabold tracking-tight text-white leading-none block">LM Wallet</span>
             <span className="text-xs text-primary-100 font-semibold tracking-wider uppercase">Portal Admin</span>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation Items */}
         <nav className="flex-1 px-4 py-6 space-y-1">
@@ -118,10 +118,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {/* Side Drawer Content */}
           <div className="relative flex flex-col w-4/5 max-w-xs bg-primary-950 text-white h-full shadow-2xl">
             <div className="p-6 border-b border-primary-900 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <Link to="/" className="flex items-center gap-3 hover:text-primary-200 transition-colors" onClick={() => setMobileMenuOpen(false)}>
                 <Coins className="h-6 w-6 text-primary-100" />
                 <h1 className="text-xl font-extrabold tracking-tight">LM Wallet</h1>
-              </div>
+              </Link>
               <button
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 rounded-lg hover:bg-primary-900 transition-colors"

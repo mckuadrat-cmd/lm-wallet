@@ -39,12 +39,12 @@ export const BankerLayout: React.FC<BankerLayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo brand */}
-            <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div className="bg-primary-100 p-2 rounded-lg text-primary-950">
                 <Coins className="h-5 w-5" />
               </div>
               <span className="text-xl font-black tracking-tight">LM Wallet</span>
-            </div>
+            </Link>
 
             {/* Desktop Navigation Links */}
             <nav className="hidden md:flex space-x-2">
