@@ -76,6 +76,16 @@ export const BankerLayout: React.FC<BankerLayoutProps> = ({ children }) => {
                   {profile?.full_name || 'Banker'}
                 </span>
               </div>
+              
+              {profile?.role === 'admin' && (
+                <Link
+                  to="/admin/dashboard"
+                  className="p-2 rounded-xl text-primary-100 hover:bg-primary-900 hover:text-white transition-colors flex items-center gap-2 border border-transparent hover:border-primary-800"
+                  title="Kembali ke Admin Dashboard"
+                >
+                  <span className="text-sm font-bold hidden sm:inline">Admin</span>
+                </Link>
+              )}
 
               <button
                 onClick={handleLogout}

@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as zod from 'zod'
 import { supabase } from '../../lib/supabase/supabaseClient'
 import { Coins, Eye, EyeOff, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '../../app/providers/AuthProvider'
 
 const loginSchema = zod.object({
   identifier: zod.string().min(3, { message: 'Username atau Email minimal 3 karakter' }),
@@ -16,9 +17,22 @@ type LoginFormValues = zod.infer<typeof loginSchema>
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { user, profile, loading: authLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    // If the user is already logged in, redirect them away from login
+    if (!authLoading && user && profile) {
+      if (profile.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true })
+      } else {
+        navigate('/banker/dashboard', { replace: true })
+      }
+    }
+  }, [user, profile, authLoading, navigate])
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema)

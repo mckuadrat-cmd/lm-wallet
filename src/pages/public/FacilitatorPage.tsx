@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/supabaseClient'
-import { CheckCircle, Loader2, Save, XCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CheckCircle, Loader2, Save, XCircle, ArrowLeft, Home } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatLM } from '../../lib/formatters/formatters'
+import { useAuth } from '../../app/providers/AuthProvider'
 
 interface ClassData {
   id: string
@@ -12,6 +14,7 @@ interface ClassData {
 }
 
 export const FacilitatorPage: React.FC = () => {
+  const { profile } = useAuth()
   const queryClient = useQueryClient()
   const [classId, setClassId] = useState('')
   const [direction, setDirection] = useState<'income' | 'expense'>('income')
@@ -89,6 +92,22 @@ export const FacilitatorPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto w-full">
+      <div className="flex justify-between items-center mb-4 px-2">
+        <Link 
+          to="/" 
+          className="flex items-center gap-2 text-sm font-bold text-primary-800 hover:text-primary-950 transition-colors"
+        >
+          <Home className="h-4 w-4" /> Beranda
+        </Link>
+        {profile?.role === 'admin' && (
+          <Link 
+            to="/admin/dashboard" 
+            className="flex items-center gap-2 text-sm font-bold text-primary-800 hover:text-primary-950 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Kembali ke Admin
+          </Link>
+        )}
+      </div>
       <div className="bg-surface rounded-3xl shadow-xl border border-border p-6 sm:p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black text-primary-950">Fasilitator Hub</h1>
@@ -125,7 +144,7 @@ export const FacilitatorPage: React.FC = () => {
               </div>
               {selectedClass && (
                 <p className="text-sm font-medium text-text-muted mt-2">
-                  Saldo Saat Ini: <span className="font-bold text-primary-950">{formatLM(selectedClass.current_balance)} LM</span>
+                  Saldo Saat Ini: <span className="font-bold text-primary-950">{formatLM(selectedClass.current_balance)}</span>
                 </p>
               )}
             </div>

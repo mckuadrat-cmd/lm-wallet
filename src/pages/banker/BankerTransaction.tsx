@@ -587,9 +587,9 @@ export const BankerTransaction: React.FC = () => {
                         placeholder="Contoh: 50 (Kosongkan jika full)"
                         className="w-full px-4 py-3 rounded-xl border border-red-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 text-lg font-bold text-red-900"
                       />
-                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-red-200">
-                        <span className="text-sm font-bold text-red-900">Total LM yang akan diberikan:</span>
-                        <span className="text-lg font-black text-primary-950">{formatLM(amount)} LM</span>
+                      <div className="flex justify-between items-center bg-primary-50 p-4 rounded-xl border border-primary-100">
+                        <span className="font-bold text-primary-900">Total Akhir</span>
+                        <span className="text-lg font-black text-primary-950">{formatLM(amount)}</span>
                       </div>
                     </div>
                   )}
