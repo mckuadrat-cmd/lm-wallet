@@ -6,17 +6,12 @@ import {
   Maximize2, 
   Minimize2, 
   School, 
-  ArrowUpDown,
-  TrendingUp,
-  TrendingDown
+  ArrowUpDown
 } from 'lucide-react'
 
-interface LatestTx {
-  direction: 'income' | 'expense'
-  transaction_type: string
-  amount: number
-  description: string | null
-  created_at: string
+interface InventoryItem {
+  name: string
+  quantity: number
 }
 
 interface ClassScore {
@@ -26,7 +21,7 @@ interface ClassScore {
   icon: string | null
   current_balance: number
   sort_order: number
-  transactions: LatestTx[]
+  inventory: InventoryItem[]
 }
 
 export const AdminScoreboard: React.FC = () => {
@@ -34,46 +29,60 @@ export const AdminScoreboard: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [sortByBalance, setSortByBalance] = useState(true) // true: balance desc, false: alphabetical
 
-  // 1. Fetch Class Balances & Latest Transaction for each
+  // 1. Fetch Class Balances & Inventory (Purchased/Rented items)
   const { data: classes = [], refetch } = useQuery<ClassScore[]>({
     queryKey: ['scoreboardClasses'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch classes
+      const { data: classesData, error: classesError } = await supabase
         .from('classes')
-        .select(`
-          id, name, color, icon, current_balance, sort_order,
-          transactions(
-            direction, transaction_type, amount, description, status, created_at
-          )
-        `)
+        .select('id, name, color, icon, current_balance, sort_order')
         .eq('is_active', true)
-        .eq('transactions.status', 'completed')
-        .order('created_at', { referencedTable: 'transactions', ascending: false })
-        .limit(2, { referencedTable: 'transactions' })
       
-      if (error) throw error
+      if (classesError) throw classesError
 
-      return (data as any[]).map(c => ({
-        id: c.id,
-        name: c.name,
-        color: c.color,
-        icon: c.icon,
-        current_balance: Number(c.current_balance),
-        sort_order: c.sort_order,
-        transactions: (c.transactions || []).map((t: any) => ({
-          direction: t.direction,
-          transaction_type: t.transaction_type,
-          amount: Number(t.amount),
-          description: t.description,
-          created_at: t.created_at
-        }))
-      }))
+      // Fetch inventory (completed purchases/rentals)
+      const { data: txItemsData, error: txItemsError } = await supabase
+        .from('transaction_items')
+        .select(`
+          item_name,
+          quantity,
+          transactions!inner(class_id, status, transaction_type)
+        `)
+        .eq('transactions.status', 'completed')
+        .in('transactions.transaction_type', ['purchase', 'rental'])
+
+      if (txItemsError) throw txItemsError
+
+      // Map inventory to classes
+      return classesData.map(c => {
+        const inventoryMap: Record<string, number> = {}
+        txItemsData.forEach((item: any) => {
+          if (item.transactions.class_id === c.id) {
+            inventoryMap[item.item_name] = (inventoryMap[item.item_name] || 0) + item.quantity
+          }
+        })
+
+        const inventory = Object.entries(inventoryMap)
+          .map(([name, quantity]) => ({ name, quantity }))
+          .sort((a, b) => b.quantity - a.quantity)
+
+        return {
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          icon: c.icon,
+          current_balance: Number(c.current_balance),
+          sort_order: c.sort_order,
+          inventory
+        }
+      })
     }
   })
 
   // 2. Bind Realtime Sync
   useEffect(() => {
-    // Listen to updates on both classes and transactions to update scoreboard live
+    // Listen to updates on classes, transactions, and transaction_items to update scoreboard live
     const classesChannel = supabase
       .channel('realtime:admin_scoreboard_data')
       .on(
@@ -84,6 +93,11 @@ export const AdminScoreboard: React.FC = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },
+        () => { refetch() }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transaction_items' },
         () => { refetch() }
       )
       .subscribe()
@@ -129,19 +143,7 @@ export const AdminScoreboard: React.FC = () => {
     }
   })
 
-  const getTxTypeLabel = (type: string) => {
-    switch (type) {
-      case 'initial_balance': return 'Saldo Awal'
-      case 'mission_reward': return 'Misi'
-      case 'job_reward': return 'Gaji Job'
-      case 'purchase': return 'Belanja'
-      case 'rental': return 'Sewa'
-      case 'bonus': return 'Bonus'
-      case 'penalty': return 'Denda'
-      case 'refund': return 'Refund'
-      default: return 'Aktivitas'
-    }
-  }
+
 
   return (
     <div className="space-y-6">
@@ -234,43 +236,28 @@ export const AdminScoreboard: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Bottom Section: Light activity list of 2 items */}
-                    <div className="flex-1 p-4 flex flex-col justify-center bg-slate-100/50">
-                      {!cls.transactions || cls.transactions.length === 0 ? (
-                        <div className="text-center text-[11px] text-slate-400 font-semibold italic">
-                          Belum ada aktivitas terbaru
+                    {/* Bottom Section: Inventory list */}
+                    <div className="flex-1 p-4 flex flex-col justify-start bg-slate-100/50 overflow-y-auto min-h-[150px]">
+                      {!cls.inventory || cls.inventory.length === 0 ? (
+                        <div className="text-center text-sm text-slate-400 font-semibold italic mt-4">
+                          Belum ada fasilitas/barang
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          {cls.transactions.slice(0, 2).map((tx, idx) => (
+                        <div className="space-y-3">
+                          {cls.inventory.map((item, idx) => (
                             <div 
                               key={idx} 
-                              className={`flex items-center justify-between text-xs pt-1.5 first:pt-0 border-t border-slate-200/50 first:border-0`}
+                              className="flex items-center justify-between text-base border-b border-slate-200/70 pb-2 last:border-0 last:pb-0"
                             >
-                              {/* Left side: Mutation amount & type */}
-                              <div className="flex items-center gap-1 shrink-0">
-                                {tx.direction === 'income' ? (
-                                  <TrendingUp className="h-3 w-3 text-income" />
-                                ) : (
-                                  <TrendingDown className="h-3 w-3 text-expense" />
-                                )}
-                                <span className={`font-black ${tx.direction === 'income' ? 'text-income' : 'text-expense'}`}>
-                                  {tx.direction === 'income' ? '+' : '-'}{tx.amount}
-                                </span>
-                                <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 uppercase leading-none">
-                                  {getTxTypeLabel(tx.transaction_type)}
-                                </span>
-                              </div>
+                              {/* Left side: Item name */}
+                              <span className="font-bold text-slate-700 pr-2 leading-tight">
+                                {item.name}
+                              </span>
 
-                              {/* Right side: Description & Time */}
-                              <div className="flex items-center gap-1.5 max-w-[130px] justify-end flex-1 min-w-0">
-                                <span className="text-[10px] text-slate-600 font-bold truncate" title={tx.description || ''}>
-                                  {tx.description || '-'}
-                                </span>
-                                <span className="text-[8px] text-slate-400 font-bold shrink-0">
-                                  {new Date(tx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
+                              {/* Right side: Quantity */}
+                              <span className="font-black text-slate-900 bg-slate-200 px-2.5 py-0.5 rounded-lg shrink-0">
+                                {item.quantity}x
+                              </span>
                             </div>
                           ))}
                         </div>
