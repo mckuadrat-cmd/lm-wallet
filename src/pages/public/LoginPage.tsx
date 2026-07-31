@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, Link, useLocation } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as zod from 'zod'
@@ -17,7 +17,7 @@ type LoginFormValues = zod.infer<typeof loginSchema>
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
-  const location = useLocation()
+
   const { user, profile, loading: authLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
